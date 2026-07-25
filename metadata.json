@@ -1,0 +1,6 @@
+{
+  "name": "Generative Artwork UI",
+  "description": "UI foundation for an interactive generative artwork.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
