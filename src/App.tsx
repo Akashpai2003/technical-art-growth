@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { PageLayout } from './components/PageLayout';
 import { CanvasContainer, Metrics } from './components/CanvasContainer';
-import { InformationPanel } from './components/InformationPanel';
+import { InfoButton, StatsPanel } from './components/InformationPanel';
 import { ThemeSelector, THEMES } from './components/ThemeSelector';
 import { HandVisualization } from './components/HandVisualization';
 import { useHandTracking } from './hooks/useHandTracking';
+import { IntroScreen } from './components/IntroScreen';
 
 export default function App() {
   const trackingState = useHandTracking();
@@ -12,6 +13,7 @@ export default function App() {
   const [growthValue, setGrowthValue] = useState(0);
   const [bendValue, setBendValue] = useState(0);
   const [metrics, setMetrics] = useState<Metrics>({ branches: 0, leaves: 0, flowers: 0 });
+  const [showIntro, setShowIntro] = useState(true);
 
   const normalizedGrowth = Math.min(Math.max(growthValue / 0.05, 0), 1.0);
   const normalizedBend = Math.max(Math.min(bendValue, 1.0), -1.0);
@@ -28,16 +30,16 @@ export default function App() {
         </span>
       </div>
       
-      <div className="flex gap-8">
+      <div className="flex flex-col gap-6">
          <div className="flex flex-col gap-2 w-32">
             <span className="text-white text-sm tracking-wide">growth</span>
-            <div className="w-full h-[1px] bg-white/30 relative">
+            <div className="w-full h-[3px] bg-white/30 relative">
                <div className="absolute left-0 top-0 bottom-0 bg-white" style={{width: (normalizedGrowth * 100) + '%'}} />
             </div>
          </div>
          <div className="flex flex-col gap-2 w-32">
             <span className="text-white text-sm tracking-wide">wind</span>
-            <div className="w-full h-[1px] bg-white/30 relative">
+            <div className="w-full h-[3px] bg-white/30 relative">
                <div className="absolute left-0 top-0 bottom-0 bg-white" style={{left: bendLeft + '%', width: bendWidth + '%'}} />
             </div>
          </div>
@@ -50,19 +52,30 @@ export default function App() {
   );
 
   return (
-    <PageLayout
-      canvas={
-        <CanvasContainer 
-          trackingState={trackingState} 
-          theme={activeTheme} 
-          onInteractionUpdate={(g, b) => { setGrowthValue(g); setBendValue(b); }}
-          onMetricsUpdate={setMetrics}
-        />
-      }
-      topRight={<InformationPanel trackingState={trackingState} metrics={metrics} />}
-      rightSidebar={<ThemeSelector activeTheme={activeTheme} onSelectTheme={setActiveTheme} />}
-      bottomLeft={bottomLeft}
-      bottomCenter={null}
-    />
+    <>
+      {showIntro && <IntroScreen onStart={() => setShowIntro(false)} />}
+      <PageLayout
+        canvas={
+          <CanvasContainer 
+            trackingState={trackingState} 
+            theme={activeTheme} 
+            onInteractionUpdate={(g, b) => { setGrowthValue(g); setBendValue(b); }}
+            onMetricsUpdate={setMetrics}
+          />
+        }
+        topLeft={
+          <StatsPanel trackingState={trackingState} metrics={metrics} />
+        }
+        topRight={
+          <InfoButton />
+        }
+        rightSidebar={null}
+        bottomLeft={bottomLeft}
+        bottomRight={
+          <ThemeSelector activeTheme={activeTheme} onSelectTheme={setActiveTheme} />
+        }
+        bottomCenter={null}
+      />
+    </>
   );
 }

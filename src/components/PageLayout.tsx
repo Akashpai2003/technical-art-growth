@@ -1,17 +1,21 @@
 import { ReactNode } from 'react';
 
 interface PageLayoutProps {
-  topRight: ReactNode;
-  rightSidebar: ReactNode;
-  bottomLeft: ReactNode;
-  bottomCenter: ReactNode;
+  topLeft?: ReactNode;
+  topRight?: ReactNode;
+  rightSidebar?: ReactNode;
+  bottomLeft?: ReactNode;
+  bottomRight?: ReactNode;
+  bottomCenter?: ReactNode;
   canvas: ReactNode;
 }
 
 export function PageLayout({
+  topLeft,
   topRight,
   rightSidebar,
   bottomLeft,
+  bottomRight,
   bottomCenter,
   canvas
 }: PageLayoutProps) {
@@ -25,8 +29,9 @@ export function PageLayout({
       {/* UI Layer */}
       <div className="absolute inset-0 z-10 pointer-events-none p-8 flex flex-col justify-between">
         {/* Top Row */}
-        <div className="flex justify-end items-start pointer-events-auto">
-          <div>{topRight}</div>
+        <div className="flex justify-between items-start w-full relative">
+          <div className="pointer-events-auto">{topLeft}</div>
+          <div className="pointer-events-auto">{topRight}</div>
         </div>
 
         {/* Middle Right */}
@@ -35,12 +40,15 @@ export function PageLayout({
         </div>
 
         {/* Bottom Row */}
-        <div className="flex justify-between items-end pointer-events-auto w-full relative">
-          <div className="flex flex-col gap-6">
+        <div className="flex justify-between items-end w-full relative">
+          <div className="flex flex-col gap-6 pointer-events-auto">
             {bottomLeft}
           </div>
-          <div className="absolute left-1/2 bottom-0 -translate-x-1/2">
+          <div className="absolute left-1/2 bottom-0 -translate-x-1/2 pointer-events-auto">
             {bottomCenter}
+          </div>
+          <div className="pointer-events-auto">
+            {bottomRight}
           </div>
         </div>
       </div>

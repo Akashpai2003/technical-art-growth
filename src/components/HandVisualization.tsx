@@ -83,7 +83,7 @@ function HandPanel({ title, hand, detected }: { title: string, hand: HandData | 
 
 export function HandVisualization({ trackingState }: { trackingState: TrackingState }) {
   return (
-    <div className="flex gap-8">
+    <div className="flex gap-4">
       <HandPanel 
         title="left hand" 
         hand={trackingState.leftHand} 

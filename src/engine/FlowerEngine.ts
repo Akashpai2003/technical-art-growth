@@ -89,16 +89,16 @@ export class FlowerEngine {
   preGenerate(branch: Branch) {
     if (branch.depth >= GROWTH_PARAMS.maxDepth) return;
     if (branch.isFlower) return;
-    if (this.metrics.branches > 120) return; // Hard cap on branches
+    if (this.metrics.branches > 400) return; // Hard cap on branches
     
     this.metrics.branches++;
     
     const depthRatio = branch.depth / GROWTH_PARAMS.maxDepth;
     
     // Controlled branching
-    let maxSplits = 1 + (Math.random() > 0.3 ? 1 : 0);
-    if (branch.depth === 0) maxSplits = 2 + (Math.random() > 0.3 ? 1 : 0);
-    if (branch.depth > 3) maxSplits = Math.random() > 0.5 ? 1 : 0; 
+    let maxSplits = 1 + (Math.random() > 0.3 ? 1 : 0) + (Math.random() > 0.8 ? 1 : 0);
+    if (branch.depth === 0) maxSplits = 3 + (Math.random() > 0.4 ? 1 : 0);
+    if (branch.depth > 3) maxSplits = Math.random() > 0.3 ? 1 : 0; 
     
     const splits = maxSplits;
     const spread = GROWTH_PARAMS.branchAngle + (1 - depthRatio) * 0.3;
@@ -137,7 +137,7 @@ export class FlowerEngine {
              children: [],
              isFlower: false,
              flowerProgress: 0,
-             curvature: (Math.random() - 0.5) * 0.3, 
+             curvature: (Math.random() - 0.5) * 0.6, 
              flowerSizeMult: 1,
              thicknessMult: branch.thicknessMult * (0.7 + Math.random() * 0.3),
              parentPos: pos
@@ -146,17 +146,17 @@ export class FlowerEngine {
         this.preGenerate(child);
     }
     
-    let flowerChance = 0.1;
-    if (depthRatio >= 0.7) flowerChance = 0.8; 
-    else if (depthRatio >= 0.4) flowerChance = 0.4;
+    let flowerChance = 0.05;
+    if (depthRatio >= 0.7) flowerChance = 0.5; 
+    else if (depthRatio >= 0.4) flowerChance = 0.2;
     
     const isTerminal = branch.depth >= GROWTH_PARAMS.maxDepth - 1;
     if (isTerminal || Math.random() < flowerChance) {
-         const numFlowers = isTerminal ? (3 + Math.floor(Math.random() * 3)) : (1 + Math.floor(Math.random() * 2));
+         const numFlowers = isTerminal ? (1 + Math.floor(Math.random() * 2)) : 1;
          for (let i = 0; i < numFlowers; i++) {
             branch.children.push({
                id: Math.random().toString(),
-               angle: branch.angle + (Math.random() - 0.5) * 2.0,
+               angle: branch.angle + (Math.random() - 0.5) * 1.5,
                length: 0,
                depth: branch.depth + 1,
                progress: 0,
@@ -164,9 +164,9 @@ export class FlowerEngine {
                isFlower: true,
                flowerProgress: 0,
                curvature: 0,
-               flowerSizeMult: 0.8 + Math.random() * 0.5,
+               flowerSizeMult: 0.8 + Math.random() * 0.4,
                thicknessMult: 1,
-               parentPos: 0.8 + Math.random() * 0.2
+               parentPos: 0.7 + (i / numFlowers) * 0.25 + (Math.random() * 0.05)
             });
          }
     }
@@ -399,37 +399,50 @@ export class FlowerEngine {
 
         const currentWidth = startWidth + (endWidth - startWidth) * t;
         
+        // Core with glow
         ctx.beginPath();
         ctx.moveTo(prevP.x, prevP.y);
         ctx.lineTo(p.x, p.y);
-        ctx.lineWidth = currentWidth;
-        ctx.strokeStyle = depthRatio > 0.6 ? theme.leaves : theme.tree;
+        
+        // Round caps so it feels organic
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        
+        ctx.lineWidth = currentWidth * 0.8;
+        ctx.strokeStyle = '#ffffff';
         ctx.globalAlpha = 0.9;
-        ctx.globalCompositeOperation = 'source-over';
+        
+        ctx.shadowColor = theme.glowColor;
+        ctx.shadowBlur = currentWidth * 2;
+        
+        ctx.globalCompositeOperation = 'screen';
         ctx.stroke();
         
+        ctx.shadowBlur = 0;
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.globalAlpha = 1.0;
+
         prevP = p;
     }
 
     // Draw Leaves
-    if (depthRatio > 0.3 && branch.progress > 0.1) {
+    if (depthRatio > 0.1 && branch.progress > 0.1) {
        let seed = Math.abs(branch.angle * 1000 + branch.depth * 100);
        const random = () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
        
-       let leafBaseCount = 0;
-       if (depthRatio > 0.7) leafBaseCount = 10;
-       else if (depthRatio > 0.4) leafBaseCount = 4;
-       else leafBaseCount = 0;
+       let leafBaseCount = 2; // minimum cap
+       if (depthRatio > 0.7) leafBaseCount = 6;
+       else if (depthRatio > 0.4) leafBaseCount = 3;
        
-       const leafCount = leafBaseCount + Math.floor(random() * 6);
+       const leafCount = leafBaseCount + Math.floor(random() * 4);
        
          for (let i = 0; i < leafCount; i++) {
-          const t = 0.1 + random() * 0.8; 
+          const t = 0.1 + (i / leafCount) * 0.8 + (random() * 0.05); 
           const leafId = branch.id + '_leaf_' + i;
           
           if (branch.progress > t) {
              if (this.detachedLeaves.has(leafId)) continue;
-             if (this.metrics.leaves > 1500) break; // Hard cap
+             if (this.metrics.leaves > 3500) break; // Hard cap
              
              this.metrics.leaves++;
              
@@ -443,11 +456,12 @@ export class FlowerEngine {
              const lx = leafPt.x;
              const ly = leafPt.y;
              
-             const baseOffset = (random() > 0.5 ? 1 : -1) * (0.3 + random() * 0.8);
+             // Random placement left/right with tight rotation
+             const baseOffset = (random() > 0.5 ? 1 : -1) * (0.95 + random() * 0.05);
              const extraSway = (this.leafBend - this.currentBend) * 1.5;
-             const leafAngle = finalAngle + baseOffset + extraSway + (random() - 0.5) * 0.4;
+             const leafAngle = finalAngle + baseOffset + extraSway;
              
-             const leafScaleBase = 0.5 + random() * 2.0;
+             const leafScaleBase = 0.6 + random() * 1.5;
              const ageScale = Math.min(1, (branch.progress - t) * 4.0);
              const leafScale = leafScaleBase * ageScale;
              
@@ -477,26 +491,17 @@ export class FlowerEngine {
              ctx.rotate(leafAngle);
              ctx.scale(leafScale, leafScale);
              
-             const leafW = 7 + random() * 4; 
-             const leafL = 20 + random() * 10;
+             const leafW = 6 + random() * 3; 
+             const leafL = 14 + random() * 6;
              
-             // Base Watercolor Leaf
              ctx.beginPath();
              ctx.moveTo(0, 0);
-             ctx.quadraticCurveTo(leafW, -leafW * 0.4, leafL, 0);
-             ctx.quadraticCurveTo(leafW, leafW * 0.4, 0, 0);
+             ctx.quadraticCurveTo(leafL * 0.5, -leafW, leafL, -leafW * 0.8);
+             ctx.lineTo(leafL * 0.8, 0);
+             ctx.lineTo(leafL, leafW * 0.8);
+             ctx.quadraticCurveTo(leafL * 0.5, leafW, 0, 0);
              ctx.fillStyle = theme.leaves;
              ctx.globalAlpha = 0.85;
-             ctx.fill();
-             
-             // Soft highlight / bleeding edge
-             ctx.globalCompositeOperation = 'screen';
-             ctx.fillStyle = theme.flowers; 
-             ctx.globalAlpha = 0.35;
-             ctx.beginPath();
-             ctx.moveTo(0, 0);
-             ctx.quadraticCurveTo(leafW * 0.5, -leafW * 0.2, leafL * 0.8, 0);
-             ctx.quadraticCurveTo(leafW * 0.5, leafW * 0.2, 0, 0);
              ctx.fill();
              
              ctx.restore();
@@ -554,16 +559,16 @@ export class FlowerEngine {
       ctx.save();
       ctx.translate(startX, startY);
       
-      // Watercolor glow for flower
-      ctx.globalCompositeOperation = 'screen';
-      ctx.shadowColor = theme.flowers;
-      ctx.shadowBlur = 20 * scale;
-      
       const breathe = Math.abs(baseBend) > 0.05 ? 1 + Math.sin(time * 0.003 + startX * 0.1) * 0.05 : 1;
       ctx.scale(breathe, breathe);
       
       const numPetals = 5;
       const flowerSway = (this.flowerBend - this.currentBend) * 1.5;
+      
+      // Solid flower base with subtle glow
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.shadowColor = theme.glowColor;
+      ctx.shadowBlur = 8 * scale;
       
       for (let i = 0; i < numPetals; i++) {
          ctx.save();
@@ -580,6 +585,7 @@ export class FlowerEngine {
          ctx.restore();
       }
       
+      ctx.shadowBlur = 0;
       ctx.globalAlpha = 1.0;
       ctx.beginPath();
       ctx.arc(0, 0, flowerRadius * 0.3, 0, Math.PI * 2);
@@ -612,22 +618,14 @@ export class FlowerEngine {
           if (p.type === 'leaf') {
              ctx.globalAlpha = p.grounded ? 0.7 : 0.85;
              ctx.fillStyle = theme.leaves;
-             const leafW = 7;
-             const leafL = 20;
+             const leafW = 6;
+             const leafL = 14;
              ctx.beginPath();
              ctx.moveTo(0, 0);
-             ctx.quadraticCurveTo(leafW, -leafW * 0.4, leafL, 0);
-             ctx.quadraticCurveTo(leafW, leafW * 0.4, 0, 0);
-             ctx.fill();
-             
-             // Soft highlight / bleeding edge
-             ctx.globalCompositeOperation = 'screen';
-             ctx.fillStyle = theme.flowers; 
-             ctx.globalAlpha = p.grounded ? 0.2 : 0.35;
-             ctx.beginPath();
-             ctx.moveTo(0, 0);
-             ctx.quadraticCurveTo(leafW * 0.5, -leafW * 0.2, leafL * 0.8, 0);
-             ctx.quadraticCurveTo(leafW * 0.5, leafW * 0.2, 0, 0);
+             ctx.quadraticCurveTo(leafL * 0.5, -leafW, leafL, -leafW * 0.8);
+             ctx.lineTo(leafL * 0.8, 0);
+             ctx.lineTo(leafL, leafW * 0.8);
+             ctx.quadraticCurveTo(leafL * 0.5, leafW, 0, 0);
              ctx.fill();
           } else {
              ctx.globalAlpha = p.grounded ? 0.6 : 0.95;

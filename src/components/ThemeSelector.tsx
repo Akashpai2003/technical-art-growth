@@ -14,15 +14,10 @@ export interface ThemeConfig {
 }
 
 export const THEMES: ThemeConfig[] = [
-  { name: "Moon Bloom", background: "#060812", tree: "#f6f4ff", leaves: "#cdd1db", flowers: "#ffffff", backgroundColor: "#060812", fogColor: "#141b2d", hazeIntensity: 0.85, ditherColor: "#1a233a", glowColor: "#d8d6ff" },
-  { name: "Lavender Mist", background: "#0f1020", tree: "#f1e9ff", leaves: "#d2c9e6", flowers: "#fff8ff", backgroundColor: "#0f1020", fogColor: "#2a2f48", hazeIntensity: 0.9, ditherColor: "#353a5c", glowColor: "#c9b6ff" },
-  { name: "Cyanotype Print", background: "#0a1526", tree: "#dce6f0", leaves: "#f4ecd8", flowers: "#fffaf0", backgroundColor: "#0a1526", fogColor: "#1c3a5c", hazeIntensity: 0.95, ditherColor: "#1c3a5c", glowColor: "#d8c9a3" },
-  { name: "Ocean Dream", background: "#05121c", tree: "#dff9ff", leaves: "#a5d2e6", flowers: "#ffffff", backgroundColor: "#05121c", fogColor: "#123449", hazeIntensity: 0.85, ditherColor: "#17435e", glowColor: "#8fdfff" },
-  { name: "Forest Spirit", background: "#07120c", tree: "#dfffdc", leaves: "#9fcc9f", flowers: "#ffffff", backgroundColor: "#07120c", fogColor: "#163022", hazeIntensity: 0.9, ditherColor: "#1d402d", glowColor: "#9dffb8" },
-  { name: "Amber Glow", background: "#140d06", tree: "#fff4d2", leaves: "#cca15a", flowers: "#fffef7", backgroundColor: "#140d06", fogColor: "#312012", hazeIntensity: 0.8, ditherColor: "#422c19", glowColor: "#ffd68a" },
-  { name: "Dusty Rose", background: "#1a1215", tree: "#ffe3ea", leaves: "#b39c9c", flowers: "#ffffff", backgroundColor: "#1a1215", fogColor: "#3d272d", hazeIntensity: 0.85, ditherColor: "#473037", glowColor: "#ffc2ce" },
-  { name: "Golden Sunset", background: "#171206", tree: "#ffecd9", leaves: "#ccaa44", flowers: "#ffffff", backgroundColor: "#171206", fogColor: "#38250f", hazeIntensity: 0.85, ditherColor: "#4d3a1e", glowColor: "#ffb459" },
-  { name: "Blossom Pink", background: "#1a0b12", tree: "#ffebf5", leaves: "#d1a3ba", flowers: "#ffffff", backgroundColor: "#1a0b12", fogColor: "#3d192a", hazeIntensity: 0.85, ditherColor: "#4f2338", glowColor: "#ff9bc7" }
+  { name: "Blue", background: "#05121c", tree: "#dce6f0", leaves: "#a5d2e6", flowers: "#1d4ed8", backgroundColor: "#05121c", fogColor: "#123449", hazeIntensity: 0.85, ditherColor: "#17435e", glowColor: "#3b82f6" },
+  { name: "Red", background: "#1a0b12", tree: "#ffebf5", leaves: "#ffb3b3", flowers: "#be185d", backgroundColor: "#1a0b12", fogColor: "#3d192a", hazeIntensity: 0.85, ditherColor: "#4f2338", glowColor: "#ef4444" },
+  { name: "Yellow", background: "#171206", tree: "#ffecd9", leaves: "#ffea75", flowers: "#ca8a04", backgroundColor: "#171206", fogColor: "#38250f", hazeIntensity: 0.85, ditherColor: "#4d3a1e", glowColor: "#eab308" },
+  { name: "Green", background: "#07120c", tree: "#dfffdc", leaves: "#9fcc9f", flowers: "#15803d", backgroundColor: "#07120c", fogColor: "#163022", hazeIntensity: 0.9, ditherColor: "#1d402d", glowColor: "#22c55e" }
 ];
 
 interface ThemeSelectorProps {
@@ -37,7 +32,7 @@ export function ThemeSelector({ activeTheme, onSelectTheme }: ThemeSelectorProps
         <button
           key={theme.name}
           onClick={() => onSelectTheme(theme)}
-          className={"w-6 h-6 rounded-full cursor-pointer transition-transform " + (theme.name === activeTheme.name ? 'scale-125 ring-2 ring-white/50 ring-offset-2 ring-offset-transparent' : 'opacity-70 hover:opacity-100')}
+          className={"w-6 h-6 rounded-full cursor-pointer transition-all " + (theme.name === activeTheme.name ? 'scale-110 outline outline-2 outline-offset-4 outline-white/15' : 'opacity-70 hover:opacity-100')}
           style={{ backgroundColor: theme.glowColor }}
           title={theme.name}
         />
