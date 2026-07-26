@@ -4,18 +4,26 @@ import { ThemeConfig } from './ThemeSelector';
 import { FlowerEngine } from '../engine/FlowerEngine';
 import { BackgroundShader } from './BackgroundShader';
 
+export interface Metrics {
+  branches: number;
+  leaves: number;
+  flowers: number;
+}
+
 interface CanvasContainerProps {
   trackingState?: TrackingState;
   theme: ThemeConfig;
-  onInteractionUpdate?: (growth: number, wind: number) => void;
+  onInteractionUpdate?: (growth: number, bend: number) => void;
+  onMetricsUpdate?: (metrics: Metrics) => void;
 }
 
-export function CanvasContainer({ trackingState, theme, onInteractionUpdate }: CanvasContainerProps) {
+export function CanvasContainer({ trackingState, theme, onInteractionUpdate, onMetricsUpdate }: CanvasContainerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<FlowerEngine>(new FlowerEngine());
   const requestRef = useRef<number>(0);
   const themeRef = useRef<ThemeConfig>(theme);
   const trackingRef = useRef<TrackingState | undefined>(trackingState);
+  const lastMetricUpdateRef = useRef<number>(0);
 
   useEffect(() => {
     themeRef.current = theme;
@@ -40,12 +48,8 @@ export function CanvasContainer({ trackingState, theme, onInteractionUpdate }: C
     window.addEventListener('resize', resize);
     resize();
 
-    // Smooth values for gesture mapping
     let smoothedLeftOpenness = 0;
-    let prevLeftOpennessRaw = 0;
-    let smoothedRightVel = 0;
-    
-    let currentWindDirection = 1;
+    let smoothedTargetBend = 0;
 
     const render = (time: number) => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -53,66 +57,53 @@ export function CanvasContainer({ trackingState, theme, onInteractionUpdate }: C
       const currentTracking = trackingRef.current;
       
       let targetNormalizedGrowth = 0.0;
-      let targetNormalizedWind = 0.0;
+      let targetBend = 0.0;
 
       if (currentTracking) {
-         // Left hand controls growth (Openness mapping)
-         if (currentTracking.leftHand) {
+         if (currentTracking.leftHand && currentTracking.leftHandDetected) {
             const rawOpenness = currentTracking.leftHand.openness;
-            const openVel = rawOpenness - prevLeftOpennessRaw;
-            prevLeftOpennessRaw = rawOpenness;
-
-            // Dynamic interpolation based on gesture speed
-            let interpSpeed = 0.05;
-            if (openVel > 0.01) { // Opening quickly
-                interpSpeed = 0.2 + (openVel * 5.0);
-            } else if (openVel < -0.01) { // Closing quickly
-                interpSpeed = 0.2 + (Math.abs(openVel) * 5.0);
-            }
-
-            smoothedLeftOpenness += (rawOpenness - smoothedLeftOpenness) * Math.min(interpSpeed, 1.0);
-            targetNormalizedGrowth = Math.max(0, Math.min(1, smoothedLeftOpenness));
+            smoothedLeftOpenness += (rawOpenness - smoothedLeftOpenness) * 0.4;
+            let targetSize = (smoothedLeftOpenness - 0.1) * 1.25;
+            targetNormalizedGrowth = Math.max(0, Math.min(1, targetSize));
          } else {
-            smoothedLeftOpenness += (0.0 - smoothedLeftOpenness) * 0.02;
-            targetNormalizedGrowth = Math.max(0, Math.min(1, smoothedLeftOpenness));
+            smoothedLeftOpenness = 0; 
+            targetNormalizedGrowth = 0;
          }
 
-         // Right hand controls wind (Horizontal velocity)
-         if (currentTracking.rightHand) {
-            const rawVelX = currentTracking.rightHand.velocity.x;
-            // Smooth the velocity to remove jitter
-            smoothedRightVel += (rawVelX - smoothedRightVel) * 0.15;
+         if (currentTracking.rightHand && currentTracking.rightHandDetected) {
+            const rawOpenness = currentTracking.rightHand.openness;
+            let desiredBend = (rawOpenness - 0.5) * 2.0; 
+            desiredBend = Math.max(-0.5, Math.min(0.5, desiredBend));
             
-            if (Math.abs(smoothedRightVel) > 0.001) {
-               currentWindDirection = smoothedRightVel > 0 ? 1 : -1;
-            }
-            
-            // Map velocity to 0-1 range. Typical max vel per frame is ~0.08
-            targetNormalizedWind = Math.max(0, Math.min(1, Math.abs(smoothedRightVel) * 12.0));
+            smoothedTargetBend += (desiredBend - smoothedTargetBend) * 0.2;
+            targetBend = smoothedTargetBend;
          } else {
-            smoothedRightVel += (0.0 - smoothedRightVel) * 0.03;
-            targetNormalizedWind = Math.max(0, Math.min(1, Math.abs(smoothedRightVel) * 12.0));
+            smoothedTargetBend += (0.0 - smoothedTargetBend) * 0.1;
+            targetBend = smoothedTargetBend;
          }
+      } else {
+         smoothedLeftOpenness = 0;
+         targetNormalizedGrowth = 0;
       }
 
-      engineRef.current.growthSpeed = targetNormalizedGrowth * 0.05;
-      engineRef.current.windStrength = targetNormalizedWind * 0.4;
-      
-      // Smoothly rotate wind direction
-      engineRef.current.windDirection += (currentWindDirection - engineRef.current.windDirection) * 0.05;
+      engineRef.current.targetTreeSize = targetNormalizedGrowth;
+      engineRef.current.targetBend = targetBend * 0.5;
 
       if (onInteractionUpdate) {
-         onInteractionUpdate(
-           engineRef.current.overallProgress, 
-           targetNormalizedWind
-         );
+         onInteractionUpdate(targetNormalizedGrowth, targetBend); 
       }
 
       engineRef.current.update(time);
       engineRef.current.draw(ctx, themeRef.current, time);
-
+      
+      if (onMetricsUpdate && time - lastMetricUpdateRef.current > 150) {
+          onMetricsUpdate({ ...engineRef.current.metrics });
+          lastMetricUpdateRef.current = time;
+      }
+      
       requestRef.current = requestAnimationFrame(render);
     };
+    
     requestRef.current = requestAnimationFrame(render);
 
     return () => {
@@ -123,15 +114,13 @@ export function CanvasContainer({ trackingState, theme, onInteractionUpdate }: C
 
   return (
     <div className="relative w-full h-full overflow-hidden">
-      {/* Procedural WebGL Atmospheric Background */}
       <BackgroundShader theme={theme} />
+      <div className="absolute inset-0 z-10" style={{ filter: 'contrast(1.1) brightness(1.05) saturate(1.1)' }}>
+        <canvas ref={canvasRef} className="absolute inset-0 w-full h-full block" />
+      </div>
       
-      {/* Generative Artwork Layer (Transparent) */}
-      <canvas ref={canvasRef} className="absolute inset-0 w-full h-full block z-10" />
-
-      {/* Photographic Film Grain Overlay */}
       <div 
-        className="pointer-events-none absolute inset-0 z-20 mix-blend-overlay opacity-20"
+        className="pointer-events-none absolute inset-0 z-20 mix-blend-overlay opacity-30"
         style={{
            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
            backgroundRepeat: 'repeat',
@@ -139,8 +128,9 @@ export function CanvasContainer({ trackingState, theme, onInteractionUpdate }: C
         }}
       />
       
-      {/* Soft Optical Vignette / Emulsion Texture */}
-      <div className="pointer-events-none absolute inset-0 z-20 shadow-[inset_0_0_150px_rgba(0,0,0,0.3)] mix-blend-multiply" />
+      <div className="pointer-events-none absolute inset-0 z-20 shadow-[inset_0_0_150px_rgba(0,0,0,0.5)] mix-blend-multiply" />
+      
+      <div className="pointer-events-none absolute inset-0 z-20 mix-blend-screen opacity-10 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-white via-transparent to-transparent" />
     </div>
   );
 }

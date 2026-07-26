@@ -1,7 +1,6 @@
 import { ReactNode } from 'react';
 
 interface PageLayoutProps {
-  topLeft: ReactNode;
   topRight: ReactNode;
   rightSidebar: ReactNode;
   bottomLeft: ReactNode;
@@ -10,7 +9,6 @@ interface PageLayoutProps {
 }
 
 export function PageLayout({
-  topLeft,
   topRight,
   rightSidebar,
   bottomLeft,
@@ -18,27 +16,32 @@ export function PageLayout({
   canvas
 }: PageLayoutProps) {
   return (
-    <div className="relative w-screen h-screen overflow-hidden bg-[var(--color-base)] text-[var(--color-text)]">
-      {/* Canvas Layer - Background */}
+    <div className="relative w-screen h-screen overflow-hidden bg-[#060812] text-white font-sans">
+      {/* Canvas Layer */}
       <div className="absolute inset-0 z-0">
         {canvas}
       </div>
 
-      {/* UI Layer - Foreground */}
-      <div className="absolute inset-0 z-10 pointer-events-none p-10 flex flex-col justify-between">
+      {/* UI Layer */}
+      <div className="absolute inset-0 z-10 pointer-events-none p-8 flex flex-col justify-between">
         {/* Top Row */}
-        <div className="flex justify-between items-start pointer-events-auto">
-          <div className="max-w-[300px]">{topLeft}</div>
+        <div className="flex justify-end items-start pointer-events-auto">
           <div>{topRight}</div>
         </div>
 
+        {/* Middle Right */}
+        <div className="absolute right-8 top-1/2 -translate-y-1/2 pointer-events-auto">
+          {rightSidebar}
+        </div>
+
         {/* Bottom Row */}
-        <div className="flex justify-between items-end pointer-events-auto">
-          <div className="flex items-end gap-10">
+        <div className="flex justify-between items-end pointer-events-auto w-full relative">
+          <div className="flex flex-col gap-6">
             {bottomLeft}
-            <div className="mb-4 max-w-[250px]">{bottomCenter}</div>
           </div>
-          <div>{rightSidebar}</div>
+          <div className="absolute left-1/2 bottom-0 -translate-x-1/2">
+            {bottomCenter}
+          </div>
         </div>
       </div>
     </div>

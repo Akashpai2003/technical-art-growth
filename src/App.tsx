@@ -1,6 +1,6 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { PageLayout } from './components/PageLayout';
-import { CanvasContainer } from './components/CanvasContainer';
+import { CanvasContainer, Metrics } from './components/CanvasContainer';
 import { InformationPanel } from './components/InformationPanel';
 import { ThemeSelector, THEMES } from './components/ThemeSelector';
 import { HandVisualization } from './components/HandVisualization';
@@ -10,53 +10,59 @@ export default function App() {
   const trackingState = useHandTracking();
   const [activeTheme, setActiveTheme] = useState(THEMES[0]);
   const [growthValue, setGrowthValue] = useState(0);
-  const [windValue, setWindValue] = useState(0);
+  const [bendValue, setBendValue] = useState(0);
+  const [metrics, setMetrics] = useState<Metrics>({ branches: 0, leaves: 0, flowers: 0 });
 
-  const normalizedGrowth = growthValue;
-  const normalizedWind = windValue;
+  const normalizedGrowth = Math.min(Math.max(growthValue / 0.05, 0), 1.0);
+  const normalizedBend = Math.max(Math.min(bendValue, 1.0), -1.0);
+  
+  const bendWidth = Math.abs(normalizedBend) * 50;
+  const bendLeft = normalizedBend < 0 ? 50 - bendWidth : 50;
 
-  const indicators = (
-    <div className="flex items-center gap-10">
-      <div className="flex flex-col gap-2 w-[200px]">
-        <div className="text-[14px] text-[var(--color-text)] tracking-wide">Growth</div>
-        <div className="flex items-center gap-4">
-          <div className="flex-1 h-[6px] bg-[var(--color-border)] rounded-full overflow-hidden">
-            <div 
-              className="h-full bg-green-400 transition-all duration-75 ease-out" 
-              style={{ width: `${normalizedGrowth * 100}%` }}
-            />
-          </div>
-          <div className="w-10 text-[14px] text-green-400">
-            {Math.round(normalizedGrowth * 100)}%
-          </div>
-        </div>
+  const bottomLeft = (
+    <div className="flex flex-col gap-6">
+      <div className="flex items-center gap-2">
+        <div className={"w-2 h-2 rounded-full " + (trackingState.isTracking ? 'bg-green-500' : 'bg-red-500')} />
+        <span className="text-white text-sm tracking-wide">
+          {trackingState.isTracking ? 'camera connected' : 'camera disconnected'}
+        </span>
       </div>
       
-      <div className="flex flex-col gap-2 w-[200px]">
-        <div className="text-[14px] text-[var(--color-text)] tracking-wide">Wind</div>
-        <div className="flex items-center gap-4">
-          <div className="flex-1 h-[6px] bg-[var(--color-border)] rounded-full overflow-hidden">
-            <div 
-              className="h-full bg-blue-400 transition-all duration-75 ease-out" 
-              style={{ width: `${normalizedWind * 100}%` }}
-            />
-          </div>
-          <div className="w-10 text-[14px] text-blue-400">
-            {Math.round(normalizedWind * 100)}%
-          </div>
-        </div>
+      <div className="flex gap-8">
+         <div className="flex flex-col gap-2 w-32">
+            <span className="text-white text-sm tracking-wide">growth</span>
+            <div className="w-full h-[1px] bg-white/30 relative">
+               <div className="absolute left-0 top-0 bottom-0 bg-white" style={{width: (normalizedGrowth * 100) + '%'}} />
+            </div>
+         </div>
+         <div className="flex flex-col gap-2 w-32">
+            <span className="text-white text-sm tracking-wide">wind</span>
+            <div className="w-full h-[1px] bg-white/30 relative">
+               <div className="absolute left-0 top-0 bottom-0 bg-white" style={{left: bendLeft + '%', width: bendWidth + '%'}} />
+            </div>
+         </div>
+      </div>
+      
+      <div className="mt-2">
+        <HandVisualization trackingState={trackingState} />
       </div>
     </div>
   );
 
   return (
     <PageLayout
-      canvas={<CanvasContainer trackingState={trackingState} theme={activeTheme} onInteractionUpdate={(g, w) => { setGrowthValue(g); setWindValue(w); }} />}
-      topLeft={indicators}
-      topRight={<InformationPanel trackingState={trackingState} />}
-      bottomLeft={<HandVisualization trackingState={trackingState} />}
-      bottomCenter={null}
+      canvas={
+        <CanvasContainer 
+          trackingState={trackingState} 
+          theme={activeTheme} 
+          onInteractionUpdate={(g, b) => { setGrowthValue(g); setBendValue(b); }}
+          onMetricsUpdate={setMetrics}
+        />
+      }
+      topRight={<InformationPanel trackingState={trackingState} metrics={metrics} />}
       rightSidebar={<ThemeSelector activeTheme={activeTheme} onSelectTheme={setActiveTheme} />}
+      bottomLeft={bottomLeft}
+      bottomCenter={null}
     />
   );
 }

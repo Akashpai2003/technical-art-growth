@@ -28,6 +28,7 @@ uniform vec3 u_bgColor;
 uniform vec3 u_fogColor;
 uniform float u_hazeIntensity;
 uniform vec3 u_ditherColor;
+uniform float u_bend;
 
 // Hash for noise
 float hash(vec2 p) {
@@ -49,7 +50,7 @@ float noise(vec2 x) {
 float fbm(vec2 p) {
     float f = 0.0;
     float w = 0.5;
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 2; i++) { // Reduced from 4 to 2 for performance
         f += w * noise(p);
         p *= 2.0;
         w *= 0.5;
@@ -86,25 +87,27 @@ float bayer(vec2 p) {
 }
 
 void main() {
-    vec2 uv = gl_FragCoord.xy / u_resolution.xy;
+    // Pixelate coordinates for retro feel and better performance
+    float pixelSize = 4.0;
+    vec2 coord = floor(gl_FragCoord.xy / pixelSize) * pixelSize;
+    vec2 uv = coord / u_resolution.xy;
     vec2 p = uv * 3.0;
+    
+    // Add drift based on bend
+    p.x -= u_bend * 0.8;
     
     // Depth layers moving at different speeds
     float t1 = u_time * 0.02;
     float t2 = u_time * 0.035;
-    float t3 = u_time * 0.05;
     
-    // Layer 1: Background Haze (slowest)
+    // Layer 1: Background Haze
     float n1 = fbm(p + vec2(t1, t1));
     
-    // Layer 2: Mid Haze
+    // Layer 2: Foreground Haze
     float n2 = fbm(p * 1.5 - vec2(t2, -t2));
     
-    // Layer 3: Foreground Haze
-    float n3 = fbm(p * 2.5 + vec2(-t3, t3));
-    
-    // Combine layers to create depth
-    float totalNoise = n1 * 0.5 + n2 * 0.3 + n3 * 0.2;
+    // Combine layers to create depth (simplified)
+    float totalNoise = n1 * 0.6 + n2 * 0.4;
     
     // Base atmosphere blending
     vec3 color = mix(u_bgColor, u_fogColor, totalNoise * u_hazeIntensity);
@@ -112,12 +115,9 @@ void main() {
     // Add bright glowy haze
     color += u_fogColor * (totalNoise * totalNoise) * 1.5;
     
-    // Animated Bayer Dither
-    float ditherLimit = bayer(gl_FragCoord.xy);
-    float ditherAnim = fract(u_time * 0.5 + ditherLimit); // Slowly evolving dither
-    
-    // Apply dither softly
-    color += (ditherAnim - 0.5) * 0.1 * u_ditherColor;
+    // Static Bayer Dither
+    float ditherLimit = bayer(coord);
+    color += (ditherLimit - 0.5) * 0.1 * u_ditherColor;
     
     gl_FragColor = vec4(color, 1.0);
 }
@@ -195,6 +195,7 @@ export function BackgroundShader({ theme }: { theme: ThemeConfig }) {
     const locFogColor = gl.getUniformLocation(program, 'u_fogColor');
     const locHazeIntensity = gl.getUniformLocation(program, 'u_hazeIntensity');
     const locDitherColor = gl.getUniformLocation(program, 'u_ditherColor');
+    const locBend = gl.getUniformLocation(program, 'u_bend');
 
     let animationFrameId: number;
     let startTime = performance.now();
@@ -225,15 +226,19 @@ export function BackgroundShader({ theme }: { theme: ThemeConfig }) {
       const targetFog = hexToRgb(targetThemeRef.current.fogColor);
       const targetHaze = targetThemeRef.current.hazeIntensity;
       const targetDither = hexToRgb(targetThemeRef.current.ditherColor);
-
+      
       // Smooth step
       const lerpFactor = 1.0 - Math.exp(-dt * 0.005);
       
-      const curr = currentColorsRef.current;
-      curr.bg = curr.bg.map((c, i) => lerp(c, targetBg[i], lerpFactor));
-      curr.fog = curr.fog.map((c, i) => lerp(c, targetFog[i], lerpFactor));
+      const curr = currentColorsRef.current as any;
+      
+      const targetBend = (window as any).__targetBend || 0;
+      curr.bend = lerp(curr.bend || 0, targetBend, lerpFactor);
+
+      curr.bg = curr.bg.map((c: number, i: number) => lerp(c, targetBg[i], lerpFactor));
+      curr.fog = curr.fog.map((c: number, i: number) => lerp(c, targetFog[i], lerpFactor));
       curr.haze = lerp(curr.haze, targetHaze, lerpFactor);
-      curr.dither = curr.dither.map((c, i) => lerp(c, targetDither[i], lerpFactor));
+      curr.dither = curr.dither.map((c: number, i: number) => lerp(c, targetDither[i], lerpFactor));
 
       gl.uniform2f(locResolution, canvas.width, canvas.height);
       gl.uniform1f(locTime, (time - startTime) * 0.001);
@@ -241,6 +246,7 @@ export function BackgroundShader({ theme }: { theme: ThemeConfig }) {
       gl.uniform3f(locFogColor, curr.fog[0], curr.fog[1], curr.fog[2]);
       gl.uniform1f(locHazeIntensity, curr.haze);
       gl.uniform3f(locDitherColor, curr.dither[0], curr.dither[1], curr.dither[2]);
+      gl.uniform1f(locBend, curr.bend);
 
       gl.drawArrays(gl.TRIANGLES, 0, 6);
 

@@ -1,37 +1,30 @@
 import { TrackingState } from '../hooks/useHandTracking';
+import { Metrics } from './CanvasContainer';
 
-export function InformationPanel({ trackingState }: { trackingState: TrackingState }) {
-  const { isTracking, leftHandDetected, rightHandDetected, confidence, fps } = trackingState;
-  
+export function InformationPanel({ trackingState, metrics }: { trackingState: TrackingState, metrics: Metrics }) {
   return (
-    <div className="flex flex-col items-end gap-4">
-      <div className="flex items-center gap-4">
-        {/* Tracking status visual indicator */}
-        <div className="w-64 h-12 border border-[var(--color-border)] bg-transparent rounded-none flex items-center px-4 justify-between text-[16px] text-[var(--color-text)]">
-          <span>Status</span>
-          <div className="flex items-center gap-2">
-            <div className={`w-2 h-2 rounded-full ${isTracking ? 'bg-green-500' : 'bg-red-500'}`} />
-            <span className={isTracking ? 'text-[var(--color-text)]' : 'text-[var(--color-text-muted)]'}>
-              {isTracking ? 'Active' : 'Initializing...'}
-            </span>
-          </div>
-        </div>
-        {/* Info button */}
-        <button className="w-12 h-12 border border-[var(--color-border)] flex items-center justify-center text-[var(--color-text)] hover:bg-[var(--color-surface)] transition-colors rounded-none cursor-pointer p-0 m-0">
-          <span className="text-[16px]">i</span>
-        </button>
-      </div>
-      <div className="text-right">
-        <div className="whitespace-pre-line text-[14px] leading-[1.8] text-[var(--color-text)] m-0 p-0 flex flex-col items-end w-full">
-          <div className="flex justify-between w-48">
-            <span className="text-[var(--color-text-muted)]">FPS</span>
-            <span className="text-right">{fps}</span>
-          </div>
-          <div className="flex justify-between w-48">
-            <span className="text-[var(--color-text-muted)]">Confidence</span>
-            <span className="text-right">{(confidence * 100).toFixed(0)}%</span>
-          </div>
-        </div>
+    <div className="flex flex-col items-end gap-3">
+      <button className="w-10 h-10 border border-white/20 flex items-center justify-center text-white/70 hover:bg-white/20 transition-colors cursor-pointer p-0 m-0 bg-white/10">
+        <span className="text-sm font-serif italic">i</span>
+      </button>
+      
+      <div className="flex flex-col items-end gap-1 text-white/60 text-[11px] font-mono tracking-wide mt-2">
+         <div className="flex justify-between w-24">
+            <span>branches</span>
+            <span className="text-white">{metrics.branches}</span>
+         </div>
+         <div className="flex justify-between w-24">
+            <span>leaves</span>
+            <span className="text-white">{metrics.leaves}</span>
+         </div>
+         <div className="flex justify-between w-24">
+            <span>flowers</span>
+            <span className="text-white">{metrics.flowers}</span>
+         </div>
+         <div className="flex justify-between w-24 mt-2 pt-2 border-t border-white/20">
+            <span>fps</span>
+            <span className="text-white">{trackingState.fps}</span>
+         </div>
       </div>
     </div>
   );
