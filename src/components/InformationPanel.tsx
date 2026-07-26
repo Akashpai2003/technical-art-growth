@@ -6,8 +6,8 @@ export function InformationPanel({ trackingState, metrics }: { trackingState: Tr
   return (
     <div className="flex flex-col items-end gap-3 font-sans">
       <div className="group relative flex flex-col items-end">
-        <button className="p-2 hover:text-white/80 transition-colors cursor-pointer z-10 relative text-white opacity-60 hover:opacity-100">
-          <Info className="w-6 h-6" strokeWidth={1.5} />
+        <button className="w-10 h-10 border border-white/20 flex items-center justify-center hover:bg-white/20 transition-colors cursor-pointer p-0 m-0 bg-white/10 z-10 relative">
+          <Info className="w-5 h-5 text-white" />
         </button>
         <div className="absolute top-12 right-0 w-80 p-5 bg-black/80 border border-white/20 backdrop-blur-md opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity text-white/90 text-[13px] leading-relaxed z-50 rounded-sm shadow-xl">
           

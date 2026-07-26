@@ -84,7 +84,7 @@ export function useHandTracking() {
     async function initializeTracking() {
       try {
         const vision = await FilesetResolver.forVisionTasks(
-          "/wasm"
+          "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm"
         );
         
         const landmarker = await HandLandmarker.createFromOptions(vision, {
