@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { Camera, Hand, HandMetal } from 'lucide-react';
 
 interface IntroScreenProps {
   onStart: () => void;
@@ -6,32 +6,45 @@ interface IntroScreenProps {
 
 export function IntroScreen({ onStart }: IntroScreenProps) {
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#060812]/90 backdrop-blur-md text-white font-sans">
-      <div className="max-w-2xl w-full mx-4 p-8 border border-white/10 bg-black/40 rounded-xl shadow-2xl flex flex-col items-center text-center">
-        <h1 className="text-3xl font-light tracking-wide mb-4">Luminescent Bloom</h1>
+    <div 
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-white/5 backdrop-blur-sm text-white"
+      style={{ fontFamily: '"Geist", sans-serif' }}
+    >
+      <div className="max-w-md w-full mx-4 p-8 border border-white/20 bg-white/10 rounded-xl shadow-2xl flex flex-col">
+        <h1 className="text-xl font-medium mb-3 lowercase text-white">interactive garden</h1>
         
-        <p className="text-white/70 leading-relaxed mb-8 max-w-lg">
-          Experience a generative digital ecosystem driven by your movements. 
-          Use your left hand (open/closed palm) to control the growth and collapse of the plant. 
-          Use your right hand (open/closed palm) to control the wind direction and sway the branches.
+        <p className="text-white/80 leading-relaxed mb-8 lowercase text-sm">
+          a small interactive experiment exploring procedural plant growth using hand tracking. move your hands and watch the plant respond in real time.
         </p>
 
-        <div className="w-full aspect-video bg-black/60 border border-white/5 rounded-lg mb-8 flex items-center justify-center overflow-hidden">
-          {/* We use a placeholder for the video until one is provided */}
-          <div className="text-white/30 text-sm tracking-wider uppercase flex flex-col items-center gap-2">
-            <svg className="w-8 h-8 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span>Interactive Demo Video</span>
+        <div className="flex flex-col gap-5 mb-10">
+          <div className="flex items-center gap-4 text-sm text-white/90 lowercase">
+            <Camera className="w-5 h-5 shrink-0" />
+            <span>allow camera access</span>
+          </div>
+          <div className="flex items-center gap-4 text-sm text-white/90 lowercase">
+            <Hand className="w-5 h-5 shrink-0" />
+            <span>open your left hand to grow the plant</span>
+          </div>
+          <div className="flex items-center gap-4 text-sm text-white/90 lowercase">
+            <HandMetal className="w-5 h-5 shrink-0" />
+            <span>close your left hand to shrink the plant</span>
+          </div>
+          <div className="flex items-center gap-4 text-sm text-white/90 lowercase">
+            <Hand className="w-5 h-5 shrink-0" />
+            <span>open your right hand to bend the plant right</span>
+          </div>
+          <div className="flex items-center gap-4 text-sm text-white/90 lowercase">
+            <HandMetal className="w-5 h-5 shrink-0" />
+            <span>close your right hand to bend the plant left</span>
           </div>
         </div>
 
         <button 
           onClick={onStart}
-          className="px-8 py-3 bg-white text-black font-medium tracking-wide rounded hover:bg-white/90 transition-colors"
+          className="px-8 py-3 bg-white text-black font-medium tracking-wide rounded hover:bg-white/90 transition-colors lowercase"
         >
-          Enter Experience
+          enter experience
         </button>
       </div>
     </div>
