@@ -1,10 +1,12 @@
-import { ThemeConfig } from '../components/ThemeSelector';
+const fs = require('fs');
+
+const engineCode = `import { ThemeConfig } from '../components/ThemeSelector';
 
 export const GROWTH_PARAMS = {
   maxDepth: 7, 
-  flowerDensity: 0.8, 
-  flowerScale: 1.2, 
-  branchAngle: 0.4, 
+  flowerDensity: 1.0, 
+  flowerScale: 1.5, 
+  branchAngle: 0.35, 
 };
 
 export interface Branch {
@@ -23,7 +25,6 @@ export interface Branch {
 }
 
 export interface Particle {
-    id: string;
     x: number;
     y: number;
     vx: number;
@@ -34,7 +35,6 @@ export interface Particle {
     color: string;
     type: 'leaf' | 'flower';
     grounded: boolean;
-    phase: number;
 }
 
 export class FlowerEngine {
@@ -56,7 +56,6 @@ export class FlowerEngine {
   flowerBendVelocity: number = 0;
   
   particles: Particle[] = [];
-  detachedLeaves: Set<string> = new Set();
   
   metrics = { branches: 0, leaves: 0, flowers: 0 };
 
@@ -70,63 +69,53 @@ export class FlowerEngine {
     this.root = {
       id: Math.random().toString(),
       angle: -Math.PI / 2, 
-      length: this.canvasHeight * 0.22, // Slightly taller base trunk
+      length: this.canvasHeight * 0.40, // Taller base trunk
       depth: 0,
       progress: 0,
       children: [],
       isFlower: false,
       flowerProgress: 0,
-      curvature: (Math.random() - 0.5) * 0.1,
+      curvature: (Math.random() - 0.5) * 0.05,
       flowerSizeMult: 1,
-      thicknessMult: 1.0,
+      thicknessMult: 1.5,
       parentPos: 1
     };
     this.particles = [];
-    this.detachedLeaves.clear();
     this.preGenerate(this.root);
   }
 
   preGenerate(branch: Branch) {
     if (branch.depth >= GROWTH_PARAMS.maxDepth) return;
     if (branch.isFlower) return;
-    if (this.metrics.branches > 75) return;
-    
-    this.metrics.branches++;
     
     const depthRatio = branch.depth / GROWTH_PARAMS.maxDepth;
     
-    // Controlled branching
-    let maxSplits = 1 + (Math.random() > 0.35 ? 1 : 0);
-    if (branch.depth === 0) maxSplits = 2 + (Math.random() > 0.3 ? 1 : 0);
-    if (branch.depth > 3) maxSplits = Math.random() > 0.5 ? 1 : 0; 
+    let maxSplits = 2;
+    if (depthRatio > 0.6) maxSplits = 1;
+    if (branch.depth > 1 && Math.random() > 0.75) maxSplits = 1; 
     
     const splits = maxSplits;
-    const spread = GROWTH_PARAMS.branchAngle + (1 - depthRatio) * 0.3;
+    const spread = GROWTH_PARAMS.branchAngle + (Math.random() * 0.15 - 0.075);
     
     for (let i = 0; i < splits; i++) {
-        if (this.metrics.branches > 75) return;
-        // Distribute branching positions along the parent
-        let pos = 1.0;
-        if (splits === 1) pos = 0.6 + Math.random() * 0.4;
-        else if (splits === 2) pos = 0.3 + i * 0.5 + Math.random() * 0.2;
-        else if (splits === 3) pos = 0.2 + i * 0.3 + Math.random() * 0.2;
-        else pos = 0.1 + i * 0.25 + Math.random() * 0.1;
+        const pos = branch.depth === 0 
+           ? 0.5 + Math.random() * 0.4 
+           : 0.3 + Math.random() * 0.5; 
            
-        const len = this.canvasHeight * 0.28 * Math.pow(0.82, branch.depth) * (0.7 + Math.random() * 0.6);
+        const len = this.canvasHeight * 0.22 * (0.6 + Math.random() * 0.4) * Math.pow(0.85, branch.depth);
         
         let angleOffset = 0;
-        if (splits === 1) {
-             angleOffset = (Math.random() - 0.5) * spread * 1.5;
-        } else if (splits === 2) {
+        if (splits === 2) {
              angleOffset = i === 0 ? -spread : spread;
-             angleOffset += (Math.random() - 0.5) * 0.4;
+             angleOffset += (Math.random() - 0.5) * 0.2;
         } else {
-             angleOffset = (i - (splits - 1) / 2) * spread;
-             angleOffset += (Math.random() - 0.5) * 0.4;
+             const bias = branch.angle > -Math.PI / 2 ? 1 : -1;
+             angleOffset = (Math.random() * 0.6 + 0.2) * spread * bias;
         }
         
+        // Pull angle upwards slightly to ensure it reaches target height and doesn't curl downwards
         let proposedAngle = branch.angle + angleOffset;
-        let pullUp = 0.00; // Allow wide natural growth, stop converging heavily to the center
+        let pullUp = 0.15; 
         let finalAngle = proposedAngle * (1 - pullUp) + (-Math.PI / 2) * pullUp;
         
         const child: Branch = {
@@ -140,61 +129,46 @@ export class FlowerEngine {
              flowerProgress: 0,
              curvature: (Math.random() - 0.5) * 0.3, 
              flowerSizeMult: 1,
-             thicknessMult: branch.thicknessMult * (0.7 + Math.random() * 0.3),
+             thicknessMult: 0.7 + Math.random() * 0.4,
              parentPos: pos
         };
         branch.children.push(child);
         this.preGenerate(child);
     }
     
-    let flowerChance = 0.1;
-    if (depthRatio >= 0.7) flowerChance = 0.8; 
-    else if (depthRatio >= 0.4) flowerChance = 0.4;
+    let flowerChance = 0;
+    if (depthRatio >= 0.85) flowerChance = GROWTH_PARAMS.flowerDensity * 3.0; 
+    else if (depthRatio >= 0.7) flowerChance = GROWTH_PARAMS.flowerDensity * 0.5;
     
     const isTerminal = branch.depth >= GROWTH_PARAMS.maxDepth - 1;
     if (isTerminal || Math.random() < flowerChance) {
-         if (this.metrics.flowers > 20) return;
-         const numFlowers = isTerminal ? (1 + Math.floor(Math.random() * 2)) : (Math.random() > 0.5 ? 1 : 0);
+         const numFlowers = 1 + Math.floor(Math.random() * 2);
          for (let i = 0; i < numFlowers; i++) {
-            if (this.metrics.flowers > 20) break;
-            this.metrics.flowers++;
             branch.children.push({
                id: Math.random().toString(),
-               angle: branch.angle + (Math.random() - 0.5) * 1.5,
-               length: 40 + Math.random() * 60,
+               angle: branch.angle + (Math.random() - 0.5) * 2.0,
+               length: 0,
                depth: branch.depth + 1,
                progress: 0,
                children: [],
                isFlower: true,
                flowerProgress: 0,
-               curvature: (Math.random() - 0.5) * 0.5,
+               curvature: 0,
                flowerSizeMult: 0.8 + Math.random() * 0.5,
                thicknessMult: 1,
-               parentPos: 0.95 + Math.random() * 0.05
+               parentPos: 0.8 + Math.random() * 0.2
             });
          }
     }
   }
 
-  getTreeProgress(branch: Branch, currentMetrics: { branches: number, leaves: number, flowers: number }): { current: number, max: number } {
+  getTreeProgress(branch: Branch): { current: number, max: number } {
      let current = branch.isFlower ? branch.flowerProgress : branch.progress;
      let max = 1;
-     
-     if (current > 0) {
-        if (branch.isFlower) currentMetrics.flowers++;
-        else currentMetrics.branches++;
-     }
-
      for (const child of branch.children) {
-         if (branch.progress >= child.parentPos) {
-             const childProg = this.getTreeProgress(child, currentMetrics);
-             current += childProg.current;
-             max += childProg.max;
-         } else {
-             // Add max anyway to keep total consistent
-             const childProg = this.getTreeProgress(child, { branches: 0, leaves: 0, flowers: 0 }); // dummy
-             max += childProg.max;
-         }
+         const childProg = this.getTreeProgress(child);
+         current += childProg.current;
+         max += childProg.max;
      }
      return { current, max };
   }
@@ -220,31 +194,17 @@ export class FlowerEngine {
     this.flowerBendVelocity *= 0.75;
     this.flowerBend += this.flowerBendVelocity;
 
-    let visibleMetrics = { branches: 0, leaves: 0, flowers: 0 };
-    const prog = this.getTreeProgress(this.root, visibleMetrics);
-    
-    // Add detached particles to leaves count
-    visibleMetrics.leaves += this.particles.filter(p => p.type === 'leaf').length;
-    visibleMetrics.flowers += this.particles.filter(p => p.type === 'flower').length;
-    
-    // Approximate leaves attached based on visible branches (since leaf generation is per branch during render)
-    // In preGenerate we don't store leaves in children, they are just rendered.
-    // So we'll just report a rough number: e.g. 2 leaves per visible branch
-    visibleMetrics.leaves += visibleMetrics.branches * 2;
-    
-    this.metrics = visibleMetrics;
+    const prog = this.getTreeProgress(this.root);
     this.currentTreeSize = prog.current / prog.max;
     
     const diff = this.targetTreeSize - this.currentTreeSize;
     const growthSpeed = diff * (diff < 0 ? 0.95 : 0.6); 
     
-    if (this.targetTreeSize === 0 && this.currentTreeSize < 0.005) {
+    if (this.targetTreeSize === 0 && this.currentTreeSize < 0.01) {
         this.bendVelocity = 0;
         this.currentBend = 0;
-        this.reset(); // Randomize tree structure on full collapse
-        if (this.root) this._forceZero(this.root);
-        this.particles = [];
-        this.detachedLeaves.clear();
+        this._forceZero(this.root);
+        this.particles = []; 
     } else if (Math.abs(growthSpeed) > 0.001) {
         this._updateBranchState(this.root, growthSpeed);
     }
@@ -305,35 +265,26 @@ export class FlowerEngine {
           const p = this.particles[i];
           if (p.grounded) continue;
           
-          if (p.type === 'leaf') {
-             p.vy += 0.06; 
-             p.vx += (this.currentBend * 1.5) + Math.sin(time * 0.003 + p.phase) * 0.6; 
-             p.vy *= 0.95; 
-             p.vx *= 0.92;
-             p.angle += p.va + Math.sin(time * 0.005 + p.phase) * 0.05;
-          } else {
-             p.vy += 0.04; 
-             p.vx += (this.currentBend * 1.0) + Math.sin(time * 0.002 + p.phase) * 0.3; 
-             p.vy *= 0.97; 
-             p.vx *= 0.96;
-             p.angle += p.va;
-          }
+          p.vy += 0.05; 
+          p.vx += (this.currentBend * 0.8) + Math.sin(time * 0.005 + p.y * 0.02) * 0.15; 
+          p.vx *= 0.98; 
+          p.vy *= 0.98;
           
           p.x += p.vx;
           p.y += p.vy;
+          p.angle += p.va;
           
-          if (p.y > this.canvasHeight - 15) {
-              const pileHeight = 5 + Math.sin(p.x * 0.05 + p.phase) * 10;
-              p.y = this.canvasHeight - pileHeight;
+          if (p.y > this.canvasHeight - 10) {
+              p.y = this.canvasHeight - 10 + Math.random() * 8;
               p.grounded = true; 
               p.vx = 0;
               p.vy = 0;
           }
       }
       
-      if (this.particles.length > 500) {
+      if (this.particles.length > 300) {
           const groundedCount = this.particles.filter(p => p.grounded).length;
-          if (groundedCount > 300) {
+          if (groundedCount > 200) {
               const idx = this.particles.findIndex(p => p.grounded);
               if (idx !== -1) {
                   this.particles.splice(idx, 1);
@@ -351,10 +302,7 @@ export class FlowerEngine {
   }
 
   draw(ctx: CanvasRenderingContext2D, theme: ThemeConfig, time: number) {
-    if (!this.root || this.currentTreeSize <= 0.005) {
-        this.metrics = { branches: 0, leaves: 0, flowers: 0 };
-        return;
-    }
+    if (!this.root || this.currentTreeSize === 0) return;
     
     this.metrics = { branches: 0, leaves: 0, flowers: 0 };
     
@@ -385,56 +333,72 @@ export class FlowerEngine {
     
     const depthRatio = branch.depth / GROWTH_PARAMS.maxDepth;
     
-    const maxBaseWidth = 14; 
-    const startWidth = Math.max(0.5, maxBaseWidth * Math.pow(0.7, branch.depth) * branch.thicknessMult);
-    const endWidth = Math.max(0.5, maxBaseWidth * Math.pow(0.7, branch.depth + 1) * branch.thicknessMult);
+    const startWidth = Math.max(1.0, (GROWTH_PARAMS.maxDepth - branch.depth + 1) * 1.8 * branch.thicknessMult);
+    const endWidth = Math.max(0.3, (GROWTH_PARAMS.maxDepth - branch.depth) * 1.8 * branch.thicknessMult);
 
     const segments = Math.max(4, Math.floor(currentLength / 12));
     
-    // Clean single pass drawing for branch
-    let prevP = { x: startX, y: startY };
+    const passes = [
+        { mult: 1.4, alpha: 0.15, comp: 'multiply' }, 
+        { mult: 1.0, alpha: 0.60, comp: 'source-over' },
+        { mult: 0.6, alpha: 1.00, comp: 'source-over' },
+    ];
     
-    for (let i = 1; i <= segments; i++) {
-        const t = i / segments;
-        const p = this.getPointOnQuad(t, startX, startY, cpX, cpY, endX, endY);
-        
-        // Slight natural wobble
-        p.x += Math.sin(p.y * 0.05 + time * 0.005) * (1 - depthRatio) * Math.abs(baseBend) * 1.5;
-
-        const currentWidth = startWidth + (endWidth - startWidth) * t;
-        
+    for (const pass of passes) {
+        let prevP = { x: startX, y: startY };
         ctx.beginPath();
         ctx.moveTo(prevP.x, prevP.y);
-        ctx.lineTo(p.x, p.y);
-        ctx.lineWidth = currentWidth;
-        ctx.strokeStyle = depthRatio > 0.6 ? theme.leaves : theme.tree;
-        ctx.globalAlpha = 0.9;
-        ctx.globalCompositeOperation = 'source-over';
-        ctx.stroke();
         
-        prevP = p;
-    }
+        for (let i = 1; i <= segments; i++) {
+            const t = i / segments;
+            const p = this.getPointOnQuad(t, startX, startY, cpX, cpY, endX, endY);
+            
+            let wiggleX = 0;
+            let wiggleY = 0;
+            
+            if (pass.mult > 1.0) {
+                 wiggleX = (Math.random() - 0.5) * pass.mult;
+                 wiggleY = (Math.random() - 0.5) * pass.mult;
+            }
 
-    // Draw Leaves
-    if (depthRatio > 0.3 && branch.progress > 0.1) {
+            if (Math.abs(baseBend) > 0.05) {
+                wiggleX += Math.sin(p.y * 0.05 + time * 0.005) * (1 - depthRatio) * Math.abs(baseBend) * 2.0;
+            }
+            p.x += wiggleX;
+            p.y += wiggleY;
+
+            ctx.lineTo(p.x, p.y);
+            const currentWidth = startWidth + (endWidth - startWidth) * t;
+            
+            ctx.lineWidth = currentWidth * pass.mult;
+            ctx.globalAlpha = pass.alpha;
+            ctx.strokeStyle = depthRatio > 0.6 ? theme.leaves : theme.tree;
+            ctx.globalCompositeOperation = pass.comp as any;
+            
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(p.x, p.y);
+            prevP = p;
+        }
+    }
+    
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 1.0;
+
+    if (depthRatio > 0.2 && branch.progress > 0.1) {
        let seed = Math.abs(branch.angle * 1000 + branch.depth * 100);
        const random = () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
        
        let leafBaseCount = 0;
-       if (depthRatio > 0.7) leafBaseCount = 8;
-       else if (depthRatio > 0.4) leafBaseCount = 3;
-       else leafBaseCount = 0;
+       if (depthRatio > 0.6) leafBaseCount = 10;
+       else if (depthRatio > 0.3) leafBaseCount = 5;
+       else leafBaseCount = 2;
        
-       const leafCount = leafBaseCount + Math.floor(random() * 6);
+       const leafCount = leafBaseCount + Math.floor(random() * 5);
        
-         for (let i = 0; i < leafCount; i++) {
+       for (let i = 0; i < leafCount; i++) {
           const t = 0.1 + random() * 0.8; 
-          const leafId = branch.id + '_leaf_' + i;
-          
           if (branch.progress > t) {
-             if (this.detachedLeaves.has(leafId)) continue;
-             if (this.metrics.leaves >= 450) break; // Hard cap
-             
              this.metrics.leaves++;
              
              const fullLength = branch.length;
@@ -451,29 +415,23 @@ export class FlowerEngine {
              const extraSway = (this.leafBend - this.currentBend) * 1.5;
              const leafAngle = finalAngle + baseOffset + extraSway + (random() - 0.5) * 0.4;
              
-             const leafScaleBase = 0.2 + random() * 2.5;
+             const leafScaleBase = 0.6 + random() * 0.8;
              const ageScale = Math.min(1, (branch.progress - t) * 4.0);
              const leafScale = leafScaleBase * ageScale;
              
              const windEffect = Math.abs(this.targetBend);
-             // Use random() which is seeded deterministically for this leaf
-             const leafFallThreshold = 0.1 + random() * 0.3; // Requires high wind to fall, some never fall
-             if (windEffect > leafFallThreshold && this.particles.length < 500) {
-                 this.detachedLeaves.add(leafId);
+             if (windEffect > 0.3 && Math.random() < 0.08 * windEffect && this.particles.length < 300) {
                  this.particles.push({
-                     id: leafId,
                      x: lx, y: ly,
-                     vx: (this.targetBend * 5) + (Math.random() - 0.5) * 2,
-                     vy: Math.random() * 1.5 + 0.5,
+                     vx: (this.targetBend * 12) + (Math.random() - 0.5) * 3,
+                     vy: Math.random() * 2 + 1,
                      angle: leafAngle,
-                     va: (Math.random() - 0.5) * 0.2,
-                     size: leafScale * (0.9 + Math.random() * 0.5),
+                     va: (Math.random() - 0.5) * 0.3,
+                     size: leafScale * (0.8 + Math.random() * 0.4),
                      color: theme.leaves,
                      type: 'leaf',
-                     grounded: false,
-                     phase: Math.random() * Math.PI * 2
+                     grounded: false
                  });
-                 continue;
              }
 
              ctx.save();
@@ -481,27 +439,23 @@ export class FlowerEngine {
              ctx.rotate(leafAngle);
              ctx.scale(leafScale, leafScale);
              
-             const leafW = 7 + random() * 4; 
-             const leafL = 20 + random() * 10;
+             const leafW = 6 + random() * 4; 
+             const leafL = 16 + random() * 10;
              
-             // Base Watercolor Leaf
              ctx.beginPath();
              ctx.moveTo(0, 0);
              ctx.quadraticCurveTo(leafW, -leafW * 0.4, leafL, 0);
              ctx.quadraticCurveTo(leafW, leafW * 0.4, 0, 0);
+             ctx.globalCompositeOperation = 'multiply';
              ctx.fillStyle = theme.leaves;
-             ctx.globalAlpha = 0.85;
+             ctx.globalAlpha = 0.7 + random() * 0.2;
              ctx.fill();
              
-             // Soft highlight / bleeding edge
-             ctx.globalCompositeOperation = 'screen';
-             ctx.fillStyle = theme.flowers; 
-             ctx.globalAlpha = 0.35;
-             ctx.beginPath();
-             ctx.moveTo(0, 0);
-             ctx.quadraticCurveTo(leafW * 0.5, -leafW * 0.2, leafL * 0.8, 0);
-             ctx.quadraticCurveTo(leafW * 0.5, leafW * 0.2, 0, 0);
-             ctx.fill();
+             ctx.globalCompositeOperation = 'source-over';
+             ctx.lineWidth = 0.8;
+             ctx.strokeStyle = theme.leaves;
+             ctx.globalAlpha = 0.8;
+             ctx.stroke();
              
              ctx.restore();
           }
@@ -523,98 +477,68 @@ export class FlowerEngine {
   }
   
   _drawFlowers(ctx: CanvasRenderingContext2D, branch: Branch, startX: number, startY: number, accumulatedBend: number, theme: ThemeConfig, baseBend: number, time: number) {
-    if ((!branch.isFlower && branch.progress <= 0) || (branch.isFlower && branch.flowerProgress <= 0)) return;
+    if (branch.progress <= 0) return;
     
     const currentBend = baseBend * (1 + branch.depth * 0.5);
     const finalAngle = branch.angle + currentBend;
 
     if (branch.isFlower && branch.flowerProgress > 0) {
-      if (this.detachedLeaves.has(branch.id)) return;
-      
       this.metrics.flowers++;
       
       const scale = branch.flowerProgress * GROWTH_PARAMS.flowerScale * branch.flowerSizeMult;
-      const flowerRadius = 8 * scale; 
-      
-      let drawX = startX;
-      let drawY = startY;
-      
-      if (branch.length > 0) {
-          const stemLength = branch.length * branch.flowerProgress;
-          drawX = startX + Math.cos(finalAngle) * stemLength;
-          drawY = startY + Math.sin(finalAngle) * stemLength;
-      }
+      const flowerRadius = 9 * scale; 
       
       const windEffect = Math.abs(this.targetBend);
-      if (windEffect > 0.15 && Math.random() < 0.05 * windEffect && this.particles.length < 500) {
-          this.detachedLeaves.add(branch.id);
+      if (windEffect > 0.4 && Math.random() < 0.03 * windEffect && this.particles.length < 300) {
           this.particles.push({
-              id: branch.id,
-              x: drawX, y: drawY,
-              vx: (this.targetBend * 4) + (Math.random() - 0.5) * 2,
-              vy: Math.random() * 1.5 + 0.5,
+              x: startX, y: startY,
+              vx: (this.targetBend * 10) + (Math.random() - 0.5) * 2,
+              vy: Math.random() * 2 + 1,
               angle: finalAngle,
-              va: (Math.random() - 0.5) * 0.2,
+              va: (Math.random() - 0.5) * 0.4,
               size: scale,
               color: theme.flowers,
               type: 'flower',
-              grounded: false,
-              phase: Math.random() * Math.PI * 2
+              grounded: false
           });
-          return;
-      }
-
-      if (branch.length > 0) {
-          // Draw delicate stem
-          ctx.beginPath();
-          ctx.moveTo(startX, startY);
-          ctx.lineTo(drawX, drawY);
-          ctx.strokeStyle = theme.leaves;
-          ctx.globalAlpha = 0.4;
-          ctx.lineWidth = 1;
-          ctx.stroke();
       }
 
       ctx.save();
-      ctx.translate(drawX, drawY);
-      
-      // Watercolor glow for flower
-      ctx.globalCompositeOperation = 'screen';
-      ctx.shadowColor = theme.flowers;
-      ctx.shadowBlur = 20 * scale;
+      ctx.translate(startX, startY);
       
       const breathe = Math.abs(baseBend) > 0.05 ? 1 + Math.sin(time * 0.003 + startX * 0.1) * 0.05 : 1;
       ctx.scale(breathe, breathe);
       
-      const numPetals = 5;
+      const numPetals = 6;
       const flowerSway = (this.flowerBend - this.currentBend) * 1.5;
       
       for (let i = 0; i < numPetals; i++) {
          ctx.save();
          ctx.rotate((Math.PI * 2 / numPetals) * i + finalAngle + flowerSway);
          
+         ctx.globalCompositeOperation = 'source-over';
          ctx.beginPath();
          ctx.moveTo(0, 0);
          ctx.quadraticCurveTo(flowerRadius * 1.2, flowerRadius * 0.8, flowerRadius * 2.2, 0);
          ctx.quadraticCurveTo(flowerRadius * 1.2, -flowerRadius * 0.8, 0, 0);
-         ctx.fillStyle = theme.glowColor;
-         ctx.globalAlpha = 0.85;
-         ctx.fill();
-         
-         ctx.beginPath();
-         ctx.moveTo(0, 0);
-         ctx.quadraticCurveTo(flowerRadius * 0.8, flowerRadius * 0.4, flowerRadius * 1.5, 0);
-         ctx.quadraticCurveTo(flowerRadius * 0.8, -flowerRadius * 0.4, 0, 0);
          ctx.fillStyle = theme.flowers;
          ctx.globalAlpha = 0.95;
          ctx.fill();
          
+         ctx.beginPath();
+         ctx.moveTo(0, 0);
+         ctx.lineTo(flowerRadius * 1.5, 0);
+         ctx.strokeStyle = '#FFFFFF';
+         ctx.lineWidth = 1;
+         ctx.globalAlpha = 0.8;
+         ctx.stroke();
          ctx.restore();
       }
       
+      ctx.globalCompositeOperation = 'source-over';
       ctx.globalAlpha = 1.0;
       ctx.beginPath();
-      ctx.arc(0, 0, flowerRadius * 0.3, 0, Math.PI * 2);
+      ctx.arc(0, 0, flowerRadius * 0.4, 0, Math.PI * 2);
       ctx.fillStyle = theme.tree;
       ctx.fill();
       ctx.restore();
@@ -642,29 +566,19 @@ export class FlowerEngine {
           ctx.scale(p.size, p.size);
           
           if (p.type === 'leaf') {
-             ctx.globalAlpha = p.grounded ? 0.7 : 0.85;
+             ctx.globalCompositeOperation = 'source-over';
+             ctx.globalAlpha = p.grounded ? 0.15 : 0.8;
              ctx.fillStyle = theme.leaves;
-             const leafW = 7;
-             const leafL = 20;
              ctx.beginPath();
              ctx.moveTo(0, 0);
-             ctx.quadraticCurveTo(leafW, -leafW * 0.4, leafL, 0);
-             ctx.quadraticCurveTo(leafW, leafW * 0.4, 0, 0);
-             ctx.fill();
-             
-             // Soft highlight / bleeding edge
-             ctx.globalCompositeOperation = 'screen';
-             ctx.fillStyle = theme.flowers; 
-             ctx.globalAlpha = p.grounded ? 0.2 : 0.35;
-             ctx.beginPath();
-             ctx.moveTo(0, 0);
-             ctx.quadraticCurveTo(leafW * 0.5, -leafW * 0.2, leafL * 0.8, 0);
-             ctx.quadraticCurveTo(leafW * 0.5, leafW * 0.2, 0, 0);
+             ctx.quadraticCurveTo(5, -2, 14, 0);
+             ctx.quadraticCurveTo(5, 2, 0, 0);
              ctx.fill();
           } else {
-             ctx.globalAlpha = p.grounded ? 0.6 : 0.95;
+             ctx.globalCompositeOperation = 'source-over';
+             ctx.globalAlpha = p.grounded ? 0.2 : 0.85;
              ctx.fillStyle = theme.flowers;
-             const flowerRadius = 6;
+             const flowerRadius = 7;
              const numPetals = 5;
              for (let i = 0; i < numPetals; i++) {
                  ctx.save();
@@ -681,3 +595,5 @@ export class FlowerEngine {
       }
   }
 }
+`
+fs.writeFileSync('src/engine/FlowerEngine.ts', engineCode);

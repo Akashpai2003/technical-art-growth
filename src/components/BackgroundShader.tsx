@@ -97,8 +97,8 @@ void main() {
     p.x -= u_bend * 0.8;
     
     // Depth layers moving at different speeds
-    float t1 = u_time * 0.02;
-    float t2 = u_time * 0.035;
+    float t1 = u_time * 0.08;
+    float t2 = u_time * 0.12;
     
     // Layer 1: Background Haze
     float n1 = fbm(p + vec2(t1, t1));

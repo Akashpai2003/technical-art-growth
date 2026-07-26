@@ -74,6 +74,7 @@ export function useHandTracking() {
   const previousHandsRef = useRef<{ left: HandData | null, right: HandData | null }>({ left: null, right: null });
   const frameCountRef = useRef(0);
   const lastFpsTimeRef = useRef(performance.now());
+  const fpsRef = useRef(0);
   const requestRef = useRef<number>(0);
   const landmarkerRef = useRef<HandLandmarker | null>(null);
 
@@ -141,20 +142,12 @@ export function useHandTracking() {
 
       const nowInMs = performance.now();
       
-      // Throttle tracking to ~30 FPS to reduce CPU/GPU load and heat
-      if (nowInMs - lastProcessTime < 33) {
-         if (active) requestRef.current = requestAnimationFrame(processVideo);
-         return;
-      }
-      lastProcessTime = nowInMs;
-
       const results = landmarker.detectForVideo(video, nowInMs);
       
       // Calculate FPS
       frameCountRef.current++;
-      let currentFps = state.fps;
       if (nowInMs - lastFpsTimeRef.current >= 1000) {
-        currentFps = frameCountRef.current;
+        fpsRef.current = frameCountRef.current;
         frameCountRef.current = 0;
         lastFpsTimeRef.current = nowInMs;
       }
@@ -239,7 +232,7 @@ export function useHandTracking() {
         leftHandDetected: !!newLeft,
         rightHandDetected: !!newRight,
         confidence: avgConfidence,
-        fps: currentFps,
+        fps: fpsRef.current,
         distanceBetweenHands: dist
       });
 

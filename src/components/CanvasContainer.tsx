@@ -73,9 +73,9 @@ export function CanvasContainer({ trackingState, theme, onInteractionUpdate, onM
          if (currentTracking.rightHand && currentTracking.rightHandDetected) {
             const rawOpenness = currentTracking.rightHand.openness;
             let desiredBend = (rawOpenness - 0.5) * 2.0; 
-            desiredBend = Math.max(-0.5, Math.min(0.5, desiredBend));
+            desiredBend = Math.max(-0.2, Math.min(0.2, desiredBend));
             
-            smoothedTargetBend += (desiredBend - smoothedTargetBend) * 0.2;
+            smoothedTargetBend += (desiredBend - smoothedTargetBend) * 0.15;
             targetBend = smoothedTargetBend;
          } else {
             smoothedTargetBend += (0.0 - smoothedTargetBend) * 0.1;
@@ -87,7 +87,7 @@ export function CanvasContainer({ trackingState, theme, onInteractionUpdate, onM
       }
 
       engineRef.current.targetTreeSize = targetNormalizedGrowth;
-      engineRef.current.targetBend = targetBend * 0.5;
+      engineRef.current.targetBend = targetBend;
 
       if (onInteractionUpdate) {
          onInteractionUpdate(targetNormalizedGrowth, targetBend); 
@@ -115,12 +115,23 @@ export function CanvasContainer({ trackingState, theme, onInteractionUpdate, onM
   return (
     <div className="relative w-full h-full overflow-hidden">
       <BackgroundShader theme={theme} />
-      <div className="absolute inset-0 z-10" style={{ filter: 'contrast(1.1) brightness(1.05) saturate(1.1)' }}>
-        <canvas ref={canvasRef} className="absolute inset-0 w-full h-full block" />
+      <div className="absolute inset-0 z-10" style={{ filter: 'contrast(1.3) brightness(1.1) saturate(1.1) drop-shadow(0 0 15px rgba(255,255,255,0.2))' }}>
+        <canvas ref={canvasRef} className="absolute inset-0 w-full h-full block" style={{ backdropFilter: 'blur(1px)', WebkitBackdropFilter: 'blur(1px)' }} />
       </div>
       
+      {/* Low frequency paper mottling */}
       <div 
         className="pointer-events-none absolute inset-0 z-20 mix-blend-overlay opacity-30"
+        style={{
+           backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='mottleFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.01' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23mottleFilter)'/%3E%3C/svg%3E")`,
+           backgroundRepeat: 'repeat',
+           backgroundSize: '400px 400px'
+        }}
+      />
+      
+      {/* Fine Watercolor Grain */}
+      <div 
+        className="pointer-events-none absolute inset-0 z-20 mix-blend-overlay opacity-40"
         style={{
            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
            backgroundRepeat: 'repeat',
@@ -128,9 +139,14 @@ export function CanvasContainer({ trackingState, theme, onInteractionUpdate, onM
         }}
       />
       
-      <div className="pointer-events-none absolute inset-0 z-20 shadow-[inset_0_0_150px_rgba(0,0,0,0.5)] mix-blend-multiply" />
+      {/* Screen Blend / Halation Bleed Layer */}
+      <div className="pointer-events-none absolute inset-0 z-20 mix-blend-screen opacity-35" style={{ backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }} />
       
-      <div className="pointer-events-none absolute inset-0 z-20 mix-blend-screen opacity-10 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-white via-transparent to-transparent" />
+      {/* Heavy Vignette for Cyanotype punch */}
+      <div className="pointer-events-none absolute inset-0 z-20 shadow-[inset_0_0_250px_rgba(0,0,0,0.85)] mix-blend-multiply" />
+      <div className="pointer-events-none absolute inset-0 z-20 bg-[radial-gradient(circle_at_center,transparent_30%,rgba(0,0,0,0.45)_100%)] mix-blend-multiply" />
+      
+      <div className="pointer-events-none absolute inset-0 z-20 mix-blend-screen opacity-20 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-white/40 via-transparent to-transparent" />
     </div>
   );
 }
